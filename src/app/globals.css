@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  --page: #f3f0ea;
+  --ink: #1c211c;
+  --muted: #5c645c;
+  --olive: #3f5a3c;
+  --olive-soft: #6b8468;
+  --stone: #e4dfd5;
+  --stone-deep: #2a312a;
+  --line: #d5cfc3;
+  --cream: #f7f4ee;
+  --background: var(--page);
+  --foreground: var(--ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-source-serif), ui-serif, Georgia, serif;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body {
+  background:
+    radial-gradient(ellipse 120% 80% at 10% -10%, #e8ebe2 0%, transparent 50%),
+    radial-gradient(ellipse 90% 60% at 100% 0%, #ebe4d8 0%, transparent 45%),
+    var(--page);
+  color: var(--ink);
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+}
+
+.leaflet-container {
+  font: inherit;
+  background: var(--stone);
+}

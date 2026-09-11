@@ -1,0 +1,185 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/app/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model alembic_version {
+  version_num String @id(map: "alembic_version_pkc") @db.VarChar(32)
+}
+
+model audit_log {
+  id            String   @id @db.Uuid
+  actor_user_id String?  @db.Uuid
+  action        String   @db.VarChar(100)
+  target_type   String   @db.VarChar(100)
+  target_id     String   @db.Uuid
+  metadata_json Json?    @db.Json
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  users         users?   @relation(fields: [actor_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([action], map: "ix_audit_log_action")
+  @@index([actor_user_id], map: "ix_audit_log_actor_user_id")
+  @@index([created_at], map: "ix_audit_log_created_at")
+  @@index([target_type, target_id], map: "ix_audit_log_target")
+}
+
+model customers {
+  id         String    @id @db.Uuid
+  name       String    @db.VarChar(255)
+  phone      String    @db.VarChar(50)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  visits     visits[]
+}
+
+model gps_pings {
+  id          String   @id @db.Uuid
+  shift_id    String   @db.Uuid
+  user_id     String   @db.Uuid
+  lat         Float
+  lng         Float
+  accuracy_m  Float?
+  speed_mps   Float?
+  recorded_at DateTime @db.Timestamptz(6)
+  received_at DateTime @default(now()) @db.Timestamptz(6)
+  client_id   String?  @db.Uuid
+  shifts      shifts   @relation(fields: [shift_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([shift_id, client_id], map: "uq_gps_pings_shift_client")
+  @@index([shift_id, recorded_at], map: "ix_gps_pings_shift_recorded")
+  @@index([user_id, recorded_at], map: "ix_gps_pings_user_recorded")
+}
+
+model no_sale_reasons {
+  id         String    @id @db.Uuid
+  name       String    @db.VarChar(255)
+  name_hi    String?   @db.VarChar(255)
+  name_gu    String?   @db.VarChar(255)
+  is_active  Boolean
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  visits     visits[]
+
+  @@index([is_active], map: "ix_no_sale_reasons_is_active")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model products {
+  id              String    @id @db.Uuid
+  name            String    @db.VarChar(255)
+  name_hi         String?   @db.VarChar(255)
+  name_gu         String?   @db.VarChar(255)
+  unit_price      Decimal?  @db.Decimal(10, 2)
+  commission_rate Decimal?  @db.Decimal(5, 2)
+  is_active       Boolean
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  visits          visits[]
+
+  @@index([is_active], map: "ix_products_is_active")
+}
+
+model sale_types {
+  id         String    @id @db.Uuid
+  name       String    @db.VarChar(255)
+  name_hi    String?   @db.VarChar(255)
+  name_gu    String?   @db.VarChar(255)
+  is_active  Boolean
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  visits     visits[]
+
+  @@index([is_active], map: "ix_sale_types_is_active")
+}
+
+model shifts {
+  id             String      @id @db.Uuid
+  user_id        String      @unique(map: "uq_shifts_one_open_per_user", where: raw("(clock_out_at IS NULL)")) @db.Uuid
+  clock_in_at    DateTime    @db.Timestamptz(6)
+  clock_in_lat   Float
+  clock_in_lng   Float
+  clock_out_at   DateTime?   @db.Timestamptz(6)
+  clock_out_lat  Float?
+  clock_out_lng  Float?
+  travel_expense Decimal?    @db.Decimal(10, 2)
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+  gps_pings      gps_pings[]
+  users          users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  visits         visits[]
+
+  @@index([user_id, clock_out_at], map: "ix_shifts_user_clock_out")
+}
+
+model users {
+  id              String      @id @db.Uuid
+  email           String      @unique @db.VarChar(255)
+  hashed_password String      @db.VarChar(255)
+  full_name       String      @db.VarChar(255)
+  role            user_role
+  territory_label String?     @db.VarChar(255)
+  manager_id      String?     @db.Uuid
+  is_active       Boolean
+  created_at      DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?   @db.Timestamptz(6)
+  audit_log       audit_log[]
+  gps_pings       gps_pings[]
+  shifts          shifts?
+  users           users?      @relation("usersTousers", fields: [manager_id], references: [id], onUpdate: NoAction)
+  other_users     users[]     @relation("usersTousers")
+  visits          visits[]
+
+  @@index([is_active], map: "ix_users_is_active")
+  @@index([manager_id], map: "ix_users_manager_id")
+  @@index([role], map: "ix_users_role")
+}
+
+model visits {
+  id                    String           @id @db.Uuid
+  user_id               String           @db.Uuid
+  shift_id              String?          @db.Uuid
+  photo_url             String           @db.VarChar(512)
+  photo_storage_backend storage_backend
+  photo_lat             Float
+  photo_lng             Float
+  captured_at           DateTime         @db.Timestamptz(6)
+  sale_done             Boolean
+  product_id            String?          @db.Uuid
+  packets               Int?
+  sale_type_id          String?          @db.Uuid
+  no_sale_reason_id     String?          @db.Uuid
+  note                  String?          @db.VarChar(500)
+  customer_id           String?          @db.Uuid
+  synced_at             DateTime         @default(now()) @db.Timestamptz(6)
+  created_at            DateTime         @default(now()) @db.Timestamptz(6)
+  customers             customers?       @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
+  no_sale_reasons       no_sale_reasons? @relation(fields: [no_sale_reason_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  products              products?        @relation(fields: [product_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  sale_types            sale_types?      @relation(fields: [sale_type_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  shifts                shifts?          @relation(fields: [shift_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  users                 users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([captured_at], map: "ix_visits_captured_at")
+  @@index([no_sale_reason_id], map: "ix_visits_no_sale_reason_id")
+  @@index([product_id], map: "ix_visits_product_id")
+  @@index([sale_type_id], map: "ix_visits_sale_type_id")
+  @@index([shift_id], map: "ix_visits_shift_id")
+  @@index([user_id, captured_at], map: "ix_visits_user_captured")
+}
+
+enum storage_backend {
+  azure_blob
+  local_disk
+}
+
+enum user_role {
+  salesman
+  manager
+  asm
+  superadmin
+}
